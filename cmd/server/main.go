@@ -47,13 +47,4 @@ func setupRoutes(router *gin.Engine, cfg *config.Config) {
 	api := router.Group("/api")
 	projects.RegisterRoutes(api, projectService)
 	sessions.RegisterRoutes(api, sessionService)
-
-	// Health check endpoint
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":  "healthy",
-			"service": "professional-tracker",
-			"version": "1.0.0",
-		})
-	})
 }
