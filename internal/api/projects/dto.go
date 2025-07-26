@@ -4,20 +4,20 @@ import (
 	"time"
 
 	"github.com/JorgeSaicoski/professional-tracker/internal/db"
+	svc "github.com/JorgeSaicoski/professional-tracker/internal/services/projects"
 )
 
 // Request DTOs
 
+// matches the JSON sent by the front-end
 type CreateProfessionalProjectRequest struct {
-	BaseProjectID string   `json:"baseProjectId" binding:"required"`
-	ClientName    *string  `json:"clientName"`
-	SalaryPerHour *float64 `json:"salaryPerHour"`
+	Title      string  `json:"title" binding:"required"`
+	ClientName *string `json:"clientName,omitempty"`
 }
 
 type UpdateProfessionalProjectRequest struct {
-	ClientName    *string  `json:"clientName"`
-	SalaryPerHour *float64 `json:"salaryPerHour"`
-	IsActive      *bool    `json:"isActive"`
+	ClientName *string `json:"clientName"`
+	IsActive   *bool   `json:"isActive"`
 }
 
 type CreateFreelanceProjectRequest struct {
@@ -38,7 +38,6 @@ type ProfessionalProjectResponse struct {
 	ID                uint                       `json:"id"`
 	BaseProjectID     string                     `json:"baseProjectId"`
 	ClientName        *string                    `json:"clientName"`
-	SalaryPerHour     *float64                   `json:"salaryPerHour"`
 	TotalSalaryCost   float64                    `json:"totalSalaryCost"`
 	TotalHours        float64                    `json:"totalHours"`
 	IsActive          bool                       `json:"isActive"`
@@ -83,16 +82,13 @@ type TimeSessionResponse struct {
 
 func (r *CreateProfessionalProjectRequest) ToProfessionalProject() *db.ProfessionalProject {
 	return &db.ProfessionalProject{
-		BaseProjectID: r.BaseProjectID,
-		ClientName:    r.ClientName,
-		SalaryPerHour: r.SalaryPerHour,
+		ClientName: r.ClientName,
 	}
 }
 
 func (r *UpdateProfessionalProjectRequest) ToProfessionalProject() *db.ProfessionalProject {
 	project := &db.ProfessionalProject{
-		ClientName:    r.ClientName,
-		SalaryPerHour: r.SalaryPerHour,
+		ClientName: r.ClientName,
 	}
 
 	if r.IsActive != nil {
@@ -123,12 +119,19 @@ func (r *UpdateFreelanceProjectRequest) ToFreelanceProject() *db.FreelanceProjec
 	return project
 }
 
+// New helper ➜ turns the API request into the service-layer input
+func (r *CreateProfessionalProjectRequest) ToInput() *svc.CreateProfessionalProjectInput {
+	return &svc.CreateProfessionalProjectInput{
+		Title:      r.Title,
+		ClientName: r.ClientName,
+	}
+}
+
 func ProfessionalProjectToResponse(project *db.ProfessionalProject) ProfessionalProjectResponse {
 	response := ProfessionalProjectResponse{
 		ID:              project.ID,
 		BaseProjectID:   project.BaseProjectID,
 		ClientName:      project.ClientName,
-		SalaryPerHour:   project.SalaryPerHour,
 		TotalSalaryCost: project.TotalSalaryCost,
 		TotalHours:      project.TotalHours,
 		IsActive:        project.IsActive,

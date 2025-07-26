@@ -1,83 +1,132 @@
 package projects
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/JorgeSaicoski/pgconnect"
+
+	clients "github.com/JorgeSaicoski/professional-tracker/internal/client"
 	"github.com/JorgeSaicoski/professional-tracker/internal/db"
 )
 
+/* ------------------------------------------------------------------ */
+/*  Service definition & constructor                                  */
+/* ------------------------------------------------------------------ */
+
+// ProfessionalProjectService contains all persistence + integration deps.
 type ProfessionalProjectService struct {
 	projectRepo   *pgconnect.Repository[db.ProfessionalProject]
 	freelanceRepo *pgconnect.Repository[db.FreelanceProject]
 	sessionRepo   *pgconnect.Repository[db.TimeSession]
-	// TODO: Add project-core client for validation
+
+	coreClient clients.CoreProjectClient // ← project-core internal API
 }
 
-func NewProfessionalProjectService(database *pgconnect.DB) *ProfessionalProjectService {
+// NewProfessionalProjectService wires a service with its repositories
+// and the CoreProjectClient used for cross-service calls.
+func NewProfessionalProjectService(
+	database *pgconnect.DB,
+	coreClient clients.CoreProjectClient,
+) *ProfessionalProjectService {
 	return &ProfessionalProjectService{
 		projectRepo:   pgconnect.NewRepository[db.ProfessionalProject](database),
 		freelanceRepo: pgconnect.NewRepository[db.FreelanceProject](database),
 		sessionRepo:   pgconnect.NewRepository[db.TimeSession](database),
+		coreClient:    coreClient,
 	}
 }
 
-// CreateProfessionalProject creates a new professional project
-func (s *ProfessionalProjectService) CreateProfessionalProject(project *db.ProfessionalProject, userID string) (*db.ProfessionalProject, error) {
-	// TODO: Validate baseProjectId exists in project-core
-	// TODO: Check user has access to base project
+/* ------------------------------------------------------------------ */
+/*  DTOs                                                              */
+/* ------------------------------------------------------------------ */
 
-	// Set defaults
+// CreateProfessionalProjectInput is the payload the handler passes in.
+// It mirrors what the front-end sends (title, plus optional extras).
+type CreateProfessionalProjectInput struct {
+	Title      string  `json:"title"`
+	ClientName *string `json:"clientName,omitempty"`
+}
+
+/* ------------------------------------------------------------------ */
+/*  CRUD – Professional Project                                       */
+/* ------------------------------------------------------------------ */
+
+// CreateProfessionalProject creates BOTH the BaseProject (in project-core)
+// and the ProfessionalProject (local DB) in one call.
+func (s *ProfessionalProjectService) CreateProfessionalProject(
+	in *CreateProfessionalProjectInput,
+	userID string,
+) (*db.ProfessionalProject, error) {
+
+	/* 1️⃣  Create BaseProject through project-core */
+	bpReq := &clients.BaseProjectCreateRequest{
+		Title:   in.Title,
+		OwnerID: userID,
+		Status:  "active",
+		// CompanyID: nil (empty for now)
+	}
+	base, err := s.coreClient.CreateBaseProject(context.Background(), bpReq)
+	if err != nil {
+		return nil, fmt.Errorf("create base project: %w", err)
+	}
+
+	/* 2️⃣  Persist ProfessionalProject */
 	now := time.Now()
-	project.CreatedAt = now
-	project.UpdatedAt = now
-	project.IsActive = true
-	project.TotalHours = 0
-	project.TotalSalaryCost = 0
+	pp := &db.ProfessionalProject{
+		BaseProjectID:   base.ID,
+		ClientName:      in.ClientName,
+		TotalHours:      0,
+		TotalSalaryCost: 0,
+		IsActive:        true,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
 
-	if err := s.projectRepo.Create(project); err != nil {
+	if err := s.projectRepo.Create(pp); err != nil {
 		return nil, fmt.Errorf("failed to create professional project: %w", err)
 	}
 
-	return project, nil
+	return pp, nil
 }
 
 // GetProfessionalProject retrieves a professional project by ID
-func (s *ProfessionalProjectService) GetProfessionalProject(id uint, userID string) (*db.ProfessionalProject, error) {
-	var project db.ProfessionalProject
+func (s *ProfessionalProjectService) GetProfessionalProject(
+	id uint,
+	userID string,
+) (*db.ProfessionalProject, error) {
 
+	var project db.ProfessionalProject
 	if err := s.projectRepo.FindByID(id, &project); err != nil {
 		return nil, fmt.Errorf("professional project not found: %w", err)
 	}
 
-	// TODO: Validate user has access to this project via project-core
+	// TODO: Validate user access with project-core
 
-	// Load relations
 	if err := s.loadProjectRelations(&project); err != nil {
 		return nil, fmt.Errorf("failed to load project relations: %w", err)
 	}
-
 	return &project, nil
 }
 
-// UpdateProfessionalProject updates a professional project
-func (s *ProfessionalProjectService) UpdateProfessionalProject(id uint, updates *db.ProfessionalProject, userID string) (*db.ProfessionalProject, error) {
-	var project db.ProfessionalProject
+// UpdateProfessionalProject updates mutable fields
+func (s *ProfessionalProjectService) UpdateProfessionalProject(
+	id uint,
+	updates *db.ProfessionalProject,
+	userID string,
+) (*db.ProfessionalProject, error) {
 
+	var project db.ProfessionalProject
 	if err := s.projectRepo.FindByID(id, &project); err != nil {
 		return nil, fmt.Errorf("professional project not found: %w", err)
 	}
 
-	// TODO: Validate user can update this project via project-core
+	// TODO: Validate user access with project-core
 
-	// Update allowed fields
 	if updates.ClientName != nil {
 		project.ClientName = updates.ClientName
-	}
-	if updates.SalaryPerHour != nil {
-		project.SalaryPerHour = updates.SalaryPerHour
 	}
 	if updates.IsActive != project.IsActive {
 		project.IsActive = updates.IsActive
@@ -88,26 +137,31 @@ func (s *ProfessionalProjectService) UpdateProfessionalProject(id uint, updates 
 	if err := s.projectRepo.Update(&project); err != nil {
 		return nil, fmt.Errorf("failed to update professional project: %w", err)
 	}
-
 	return &project, nil
 }
 
-// DeleteProfessionalProject deletes a professional project
-func (s *ProfessionalProjectService) DeleteProfessionalProject(id uint, userID string) error {
-	var project db.ProfessionalProject
+// DeleteProfessionalProject performs safe deletion (no active sessions)
+func (s *ProfessionalProjectService) DeleteProfessionalProject(
+	id uint,
+	userID string,
+) error {
 
+	var project db.ProfessionalProject
 	if err := s.projectRepo.FindByID(id, &project); err != nil {
 		return fmt.Errorf("professional project not found: %w", err)
 	}
 
-	// TODO: Validate user can delete this project via project-core
+	// TODO: Validate user can delete via project-core
 
-	// Check for active sessions
+	// Prevent deleting while work sessions are active
 	var activeSessions []db.TimeSession
-	if err := s.sessionRepo.FindWhere(&activeSessions, "project_id = ? AND is_active = ?", id, true); err != nil {
+	if err := s.sessionRepo.FindWhere(
+		&activeSessions,
+		"project_id = ? AND is_active = ?",
+		id, true,
+	); err != nil {
 		return fmt.Errorf("failed to check active sessions: %w", err)
 	}
-
 	if len(activeSessions) > 0 {
 		return errors.New("cannot delete project with active time sessions")
 	}
@@ -115,33 +169,42 @@ func (s *ProfessionalProjectService) DeleteProfessionalProject(id uint, userID s
 	if err := s.projectRepo.Delete(&project); err != nil {
 		return fmt.Errorf("failed to delete professional project: %w", err)
 	}
-
 	return nil
 }
 
-// GetUserProfessionalProjects retrieves all professional projects for a user
-func (s *ProfessionalProjectService) GetUserProfessionalProjects(userID string) ([]db.ProfessionalProject, error) {
-	// TODO: Get user's accessible base projects from project-core
-	// TODO: Filter professional projects based on accessible base projects
+// GetUserProfessionalProjects lists all pro-projects visible to the user
+func (s *ProfessionalProjectService) GetUserProfessionalProjects(
+	userID string,
+) ([]db.ProfessionalProject, error) {
+
+	// TODO: Filter by accessible BaseProjects via project-core
 
 	var projects []db.ProfessionalProject
 	if err := s.projectRepo.FindAll(&projects); err != nil {
 		return nil, fmt.Errorf("failed to retrieve professional projects: %w", err)
 	}
-
-	// Load relations for each project
 	for i := range projects {
 		if err := s.loadProjectRelations(&projects[i]); err != nil {
-			return nil, fmt.Errorf("failed to load relations for project %d: %w", projects[i].ID, err)
+			return nil, fmt.Errorf(
+				"failed to load relations for project %d: %w",
+				projects[i].ID, err,
+			)
 		}
 	}
-
 	return projects, nil
 }
 
-// CreateFreelanceProject creates a freelance sub-project
-func (s *ProfessionalProjectService) CreateFreelanceProject(parentProjectID uint, freelance *db.FreelanceProject, userID string) (*db.FreelanceProject, error) {
-	// Validate parent project exists and user has access
+/* ------------------------------------------------------------------ */
+/*  CRUD – Freelance sub-project                                      */
+/* ------------------------------------------------------------------ */
+
+func (s *ProfessionalProjectService) CreateFreelanceProject(
+	parentProjectID uint,
+	freelance *db.FreelanceProject,
+	userID string,
+) (*db.FreelanceProject, error) {
+
+	// Validate parent project
 	parentProject, err := s.GetProfessionalProject(parentProjectID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid parent project: %w", err)
@@ -158,34 +221,37 @@ func (s *ProfessionalProjectService) CreateFreelanceProject(parentProjectID uint
 	if err := s.freelanceRepo.Create(freelance); err != nil {
 		return nil, fmt.Errorf("failed to create freelance project: %w", err)
 	}
-
 	return freelance, nil
 }
 
-// GetFreelanceProject retrieves a freelance project by ID
-func (s *ProfessionalProjectService) GetFreelanceProject(id uint, userID string) (*db.FreelanceProject, error) {
-	var freelance db.FreelanceProject
+func (s *ProfessionalProjectService) GetFreelanceProject(
+	id uint,
+	userID string,
+) (*db.FreelanceProject, error) {
 
+	var freelance db.FreelanceProject
 	if err := s.freelanceRepo.FindByID(id, &freelance); err != nil {
 		return nil, fmt.Errorf("freelance project not found: %w", err)
 	}
 
-	// Privacy check - only the worker can access their freelance project
+	// Only the worker can access their freelance project
 	if freelance.WorkerUserID != userID {
 		return nil, errors.New("access denied: freelance project is private to the worker")
 	}
-
 	return &freelance, nil
 }
 
-// UpdateFreelanceProject updates a freelance project
-func (s *ProfessionalProjectService) UpdateFreelanceProject(id uint, updates *db.FreelanceProject, userID string) (*db.FreelanceProject, error) {
+func (s *ProfessionalProjectService) UpdateFreelanceProject(
+	id uint,
+	updates *db.FreelanceProject,
+	userID string,
+) (*db.FreelanceProject, error) {
+
 	freelance, err := s.GetFreelanceProject(id, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Update allowed fields
 	if updates.CostPerHour > 0 {
 		freelance.CostPerHour = updates.CostPerHour
 	}
@@ -195,34 +261,39 @@ func (s *ProfessionalProjectService) UpdateFreelanceProject(id uint, updates *db
 	if updates.IsActive != freelance.IsActive {
 		freelance.IsActive = updates.IsActive
 	}
-
 	freelance.UpdatedAt = time.Now()
 
 	if err := s.freelanceRepo.Update(freelance); err != nil {
 		return nil, fmt.Errorf("failed to update freelance project: %w", err)
 	}
-
 	return freelance, nil
 }
 
-// Business Logic Methods
+/* ------------------------------------------------------------------ */
+/*  Reporting / Business logic                                        */
+/* ------------------------------------------------------------------ */
 
-// CalculateProjectTotals recalculates and updates project totals
-func (s *ProfessionalProjectService) CalculateProjectTotals(projectID uint) error {
+// CalculateProjectTotals recomputes hours + cost based on time sessions
+func (s *ProfessionalProjectService) CalculateProjectTotals(
+	projectID uint,
+) error {
+
 	var project db.ProfessionalProject
 	if err := s.projectRepo.FindByID(projectID, &project); err != nil {
 		return err
 	}
 
-	// Get all work sessions for this project
 	var sessions []db.TimeSession
-	if err := s.sessionRepo.FindWhere(&sessions, "project_id = ? AND session_type = ?", projectID, db.SessionTypeWork); err != nil {
+	if err := s.sessionRepo.FindWhere(
+		&sessions,
+		"project_id = ? AND session_type = ?",
+		projectID, db.SessionTypeWork,
+	); err != nil {
 		return err
 	}
 
 	totalHours := 0.0
 	totalCost := 0.0
-
 	for _, session := range sessions {
 		duration := s.calculateSessionDuration(&session)
 		hours := float64(duration) / 60.0
@@ -233,7 +304,6 @@ func (s *ProfessionalProjectService) CalculateProjectTotals(projectID uint) erro
 		}
 	}
 
-	// Update project totals
 	project.TotalHours = totalHours
 	project.TotalSalaryCost = totalCost
 	project.UpdatedAt = time.Now()
@@ -241,14 +311,16 @@ func (s *ProfessionalProjectService) CalculateProjectTotals(projectID uint) erro
 	return s.projectRepo.Update(&project)
 }
 
-// GetProjectCostReport generates a cost report for a project
-func (s *ProfessionalProjectService) GetProjectCostReport(projectID uint, userID string) (*db.ProjectTimeReport, error) {
+// GetProjectCostReport generates a lightweight cost report
+func (s *ProfessionalProjectService) GetProjectCostReport(
+	projectID uint,
+	userID string,
+) (*db.ProjectTimeReport, error) {
+
 	project, err := s.GetProfessionalProject(projectID, userID)
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: Get project title from project-core
 
 	var sessions []db.TimeSession
 	if err := s.sessionRepo.FindWhere(&sessions, "project_id = ?", projectID); err != nil {
@@ -257,7 +329,7 @@ func (s *ProfessionalProjectService) GetProjectCostReport(projectID uint, userID
 
 	report := &db.ProjectTimeReport{
 		ProjectID:    projectID,
-		ProjectTitle: fmt.Sprintf("Professional Project %d", projectID), // TODO: Get real title
+		ProjectTitle: fmt.Sprintf("Professional Project %d", projectID), // TODO fetch real title
 		TotalHours:   project.TotalHours,
 		TotalCost:    project.TotalSalaryCost,
 		WorkSessions: len(sessions),
@@ -265,36 +337,42 @@ func (s *ProfessionalProjectService) GetProjectCostReport(projectID uint, userID
 
 	if len(sessions) > 0 {
 		report.AverageSession = project.TotalHours / float64(len(sessions))
-		// Find latest session
 		for _, session := range sessions {
 			if session.CreatedAt.After(report.LastActivity) {
 				report.LastActivity = session.CreatedAt
 			}
 		}
 	}
-
 	return report, nil
 }
 
-// Helper methods
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                           */
+/* ------------------------------------------------------------------ */
 
-// loadProjectRelations loads related data for a project
-func (s *ProfessionalProjectService) loadProjectRelations(project *db.ProfessionalProject) error {
-	// Load freelance projects
-	if err := s.freelanceRepo.FindWhere(&project.FreelanceProjects, "parent_project_id = ?", project.ID); err != nil {
+func (s *ProfessionalProjectService) loadProjectRelations(
+	project *db.ProfessionalProject,
+) error {
+
+	if err := s.freelanceRepo.FindWhere(
+		&project.FreelanceProjects,
+		"parent_project_id = ?", project.ID,
+	); err != nil {
 		return fmt.Errorf("failed to load freelance projects: %w", err)
 	}
 
-	// Load time sessions
-	if err := s.sessionRepo.FindWhere(&project.TimeSessions, "project_id = ?", project.ID); err != nil {
+	if err := s.sessionRepo.FindWhere(
+		&project.TimeSessions,
+		"project_id = ?", project.ID,
+	); err != nil {
 		return fmt.Errorf("failed to load time sessions: %w", err)
 	}
-
 	return nil
 }
 
-// calculateSessionDuration calculates session duration in minutes
-func (s *ProfessionalProjectService) calculateSessionDuration(session *db.TimeSession) int {
+func (s *ProfessionalProjectService) calculateSessionDuration(
+	session *db.TimeSession,
+) int {
 	if session.EndTime == nil {
 		return int(time.Since(session.StartTime).Minutes())
 	}

@@ -9,15 +9,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+/* ------------------------------------------------------------------ */
+/*  Handler definition                                                */
+/* ------------------------------------------------------------------ */
+
 type ProjectHandler struct {
 	projectService *projects.ProfessionalProjectService
 }
 
-func NewProjectHandler(projectService *projects.ProfessionalProjectService) *ProjectHandler {
-	return &ProjectHandler{
-		projectService: projectService,
-	}
+func NewProjectHandler(svc *projects.ProfessionalProjectService) *ProjectHandler {
+	return &ProjectHandler{projectService: svc}
 }
+
+/* ------------------------- Professional --------------------------- */
 
 func (h *ProjectHandler) CreateProfessionalProject(c *gin.Context) {
 	var req CreateProfessionalProjectRequest
@@ -26,22 +30,24 @@ func (h *ProjectHandler) CreateProfessionalProject(c *gin.Context) {
 		return
 	}
 
-	userID, exists := keycloakauth.GetUserID(c)
-	if !exists {
+	userID, ok := keycloakauth.GetUserID(c)
+	if !ok {
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
 
-	project := req.ToProfessionalProject()
-	createdProject, err := h.projectService.CreateProfessionalProject(project, userID)
+	input := req.ToInput()
+	created, err := h.projectService.CreateProfessionalProject(input, userID)
 	if err != nil {
 		responses.InternalError(c, err.Error())
 		return
 	}
 
-	response := ProfessionalProjectToResponse(createdProject)
-	responses.Created(c, "Professional project created successfully", response)
+	resp := ProfessionalProjectToResponse(created)
+	responses.Created(c, "Professional project created successfully", resp)
 }
+
+/* ------------------------- R/W endpoints ------------------------- */
 
 func (h *ProjectHandler) GetProfessionalProject(c *gin.Context) {
 	idParam := c.Param("id")
@@ -51,20 +57,20 @@ func (h *ProjectHandler) GetProfessionalProject(c *gin.Context) {
 		return
 	}
 
-	userID, exists := keycloakauth.GetUserID(c)
-	if !exists {
+	userID, ok := keycloakauth.GetUserID(c)
+	if !ok {
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
 
-	project, err := h.projectService.GetProfessionalProject(uint(id), userID)
+	proj, err := h.projectService.GetProfessionalProject(uint(id), userID)
 	if err != nil {
 		responses.NotFound(c, err.Error())
 		return
 	}
 
-	response := ProfessionalProjectToResponse(project)
-	responses.Success(c, "Professional project retrieved successfully", response)
+	resp := ProfessionalProjectToResponse(proj)
+	responses.Success(c, "Professional project retrieved successfully", resp)
 }
 
 func (h *ProjectHandler) UpdateProfessionalProject(c *gin.Context) {
@@ -81,21 +87,21 @@ func (h *ProjectHandler) UpdateProfessionalProject(c *gin.Context) {
 		return
 	}
 
-	userID, exists := keycloakauth.GetUserID(c)
-	if !exists {
+	userID, ok := keycloakauth.GetUserID(c)
+	if !ok {
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	updates := req.ToProfessionalProject()
-	project, err := h.projectService.UpdateProfessionalProject(uint(id), updates, userID)
+	proj, err := h.projectService.UpdateProfessionalProject(uint(id), updates, userID)
 	if err != nil {
 		responses.InternalError(c, err.Error())
 		return
 	}
 
-	response := ProfessionalProjectToResponse(project)
-	responses.Success(c, "Professional project updated successfully", response)
+	resp := ProfessionalProjectToResponse(proj)
+	responses.Success(c, "Professional project updated successfully", resp)
 }
 
 func (h *ProjectHandler) DeleteProfessionalProject(c *gin.Context) {
@@ -106,14 +112,13 @@ func (h *ProjectHandler) DeleteProfessionalProject(c *gin.Context) {
 		return
 	}
 
-	userID, exists := keycloakauth.GetUserID(c)
-	if !exists {
+	userID, ok := keycloakauth.GetUserID(c)
+	if !ok {
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
 
-	err = h.projectService.DeleteProfessionalProject(uint(id), userID)
-	if err != nil {
+	if err := h.projectService.DeleteProfessionalProject(uint(id), userID); err != nil {
 		responses.InternalError(c, err.Error())
 		return
 	}
@@ -122,28 +127,30 @@ func (h *ProjectHandler) DeleteProfessionalProject(c *gin.Context) {
 }
 
 func (h *ProjectHandler) GetUserProfessionalProjects(c *gin.Context) {
-	userID, exists := keycloakauth.GetUserID(c)
-	if !exists {
+	userID, ok := keycloakauth.GetUserID(c)
+	if !ok {
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
 
-	projects, err := h.projectService.GetUserProfessionalProjects(userID)
+	list, err := h.projectService.GetUserProfessionalProjects(userID)
 	if err != nil {
 		responses.InternalError(c, err.Error())
 		return
 	}
 
-	projectResponses := ProfessionalProjectsToResponse(projects)
+	resp := ProfessionalProjectsToResponse(list)
 	responses.Success(c, "Professional projects retrieved successfully", gin.H{
-		"projects": projectResponses,
-		"total":    len(projectResponses),
+		"projects": resp,
+		"total":    len(resp),
 	})
 }
 
+/* ------------------------- Freelance sub-projects ---------------- */
+
 func (h *ProjectHandler) CreateFreelanceProject(c *gin.Context) {
 	idParam := c.Param("id")
-	parentProjectID, err := strconv.ParseUint(idParam, 10, 32)
+	parentID, err := strconv.ParseUint(idParam, 10, 32)
 	if err != nil {
 		responses.BadRequest(c, "Invalid parent project ID")
 		return
@@ -155,38 +162,38 @@ func (h *ProjectHandler) CreateFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	userID, exists := keycloakauth.GetUserID(c)
-	if !exists {
+	userID, ok := keycloakauth.GetUserID(c)
+	if !ok {
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
 
-	freelanceProject := req.ToFreelanceProject()
-	createdProject, err := h.projectService.CreateFreelanceProject(uint(parentProjectID), freelanceProject, userID)
+	fp := req.ToFreelanceProject()
+	created, err := h.projectService.CreateFreelanceProject(uint(parentID), fp, userID)
 	if err != nil {
 		responses.InternalError(c, err.Error())
 		return
 	}
 
-	response := FreelanceProjectToResponse(createdProject)
-	responses.Created(c, "Freelance project created successfully", response)
+	resp := FreelanceProjectToResponse(created)
+	responses.Created(c, "Freelance project created successfully", resp)
 }
 
 func (h *ProjectHandler) GetFreelanceProject(c *gin.Context) {
-	freelanceIDParam := c.Param("freelanceId")
-	freelanceID, err := strconv.ParseUint(freelanceIDParam, 10, 32)
+	fidParam := c.Param("freelanceId")
+	fid, err := strconv.ParseUint(fidParam, 10, 32)
 	if err != nil {
 		responses.BadRequest(c, "Invalid freelance project ID")
 		return
 	}
 
-	userID, exists := keycloakauth.GetUserID(c)
-	if !exists {
+	userID, ok := keycloakauth.GetUserID(c)
+	if !ok {
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
 
-	freelanceProject, err := h.projectService.GetFreelanceProject(uint(freelanceID), userID)
+	fp, err := h.projectService.GetFreelanceProject(uint(fid), userID)
 	if err != nil {
 		if err.Error() == "access denied: freelance project is private to the worker" {
 			responses.Forbidden(c, err.Error())
@@ -196,13 +203,13 @@ func (h *ProjectHandler) GetFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	response := FreelanceProjectToResponse(freelanceProject)
-	responses.Success(c, "Freelance project retrieved successfully", response)
+	resp := FreelanceProjectToResponse(fp)
+	responses.Success(c, "Freelance project retrieved successfully", resp)
 }
 
 func (h *ProjectHandler) UpdateFreelanceProject(c *gin.Context) {
-	freelanceIDParam := c.Param("freelanceId")
-	freelanceID, err := strconv.ParseUint(freelanceIDParam, 10, 32)
+	fidParam := c.Param("freelanceId")
+	fid, err := strconv.ParseUint(fidParam, 10, 32)
 	if err != nil {
 		responses.BadRequest(c, "Invalid freelance project ID")
 		return
@@ -214,14 +221,14 @@ func (h *ProjectHandler) UpdateFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	userID, exists := keycloakauth.GetUserID(c)
-	if !exists {
+	userID, ok := keycloakauth.GetUserID(c)
+	if !ok {
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	updates := req.ToFreelanceProject()
-	freelanceProject, err := h.projectService.UpdateFreelanceProject(uint(freelanceID), updates, userID)
+	fp, err := h.projectService.UpdateFreelanceProject(uint(fid), updates, userID)
 	if err != nil {
 		if err.Error() == "access denied: freelance project is private to the worker" {
 			responses.Forbidden(c, err.Error())
@@ -231,9 +238,11 @@ func (h *ProjectHandler) UpdateFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	response := FreelanceProjectToResponse(freelanceProject)
-	responses.Success(c, "Freelance project updated successfully", response)
+	resp := FreelanceProjectToResponse(fp)
+	responses.Success(c, "Freelance project updated successfully", resp)
 }
+
+/* ------------------------- Reports ------------------------------- */
 
 func (h *ProjectHandler) GetProjectCostReport(c *gin.Context) {
 	idParam := c.Param("id")
@@ -243,8 +252,8 @@ func (h *ProjectHandler) GetProjectCostReport(c *gin.Context) {
 		return
 	}
 
-	userID, exists := keycloakauth.GetUserID(c)
-	if !exists {
+	userID, ok := keycloakauth.GetUserID(c)
+	if !ok {
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}

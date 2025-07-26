@@ -11,7 +11,7 @@ func RegisterRoutes(router *gin.RouterGroup, sessionService *sessions.TimeSessio
 	handler := NewSessionHandler(sessionService)
 
 	// Time sessions endpoints
-	sessionsGroup := router.Group("/professional/sessions")
+	sessionsGroup := router.Group("/sessions")
 	sessionsGroup.Use(api.AuthMiddleware())
 	{
 		// Session management

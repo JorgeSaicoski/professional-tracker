@@ -1,29 +1,23 @@
-version: '3.8'
-
 services:
-
   professional-tracker:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: professional-tracker
+
     environment:
-        POSTGRES_HOST: shared-db
-        POSTGRES_PORT: 5432
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: yourpassword
-        POSTGRES_DB: shared_db
-        POSTGRES_SSLMODE: disable
-        POSTGRES_TIMEZONE: UTC
-        ALLOWED_ORIGINS: http://localhost:8080
-        KEYCLOAK_URL: http://keycloak:8080/keycloak
-        KEYCLOAK_REALM: master
-        PROJECT_CORE_URL: http://project-core:8001/api/internal
+      POSTGRES_HOST: shared-db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: yourpassword
+      POSTGRES_DB: shared_db
+      ALLOWED_ORIGINS: http://localhost:8080
+      KEYCLOAK_URL: http://keycloak:8080/keycloak
+      KEYCLOAK_REALM: master
+      PROJECT_CORE_URL: http://project-core:8001/api/internal
+      PORT: 8002
+    ports:
+      - "8002:8002"
     restart: unless-stopped
-
-volumes:
-  postgres_data:
-
-networks:
-  app-network:
-    external: true
+    networks:
+      - app-network

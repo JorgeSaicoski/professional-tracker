@@ -11,7 +11,7 @@ func RegisterRoutes(router *gin.RouterGroup, projectService *projects.Profession
 	handler := NewProjectHandler(projectService)
 
 	// Professional projects endpoints
-	projectsGroup := router.Group("/professional/projects")
+	projectsGroup := router.Group("/projects")
 	projectsGroup.Use(api.AuthMiddleware())
 	{
 		// Project CRUD

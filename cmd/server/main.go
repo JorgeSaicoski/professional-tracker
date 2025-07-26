@@ -4,8 +4,10 @@ import (
 	"github.com/JorgeSaicoski/microservice-commons/config"
 	"github.com/JorgeSaicoski/microservice-commons/database"
 	"github.com/JorgeSaicoski/microservice-commons/server"
+	"github.com/JorgeSaicoski/microservice-commons/utils"
 	"github.com/JorgeSaicoski/professional-tracker/internal/api/projects"
 	"github.com/JorgeSaicoski/professional-tracker/internal/api/sessions"
+	clients "github.com/JorgeSaicoski/professional-tracker/internal/client"
 	"github.com/JorgeSaicoski/professional-tracker/internal/db"
 	projectsService "github.com/JorgeSaicoski/professional-tracker/internal/services/projects"
 	sessionsService "github.com/JorgeSaicoski/professional-tracker/internal/services/sessions"
@@ -28,6 +30,10 @@ func setupRoutes(router *gin.Engine, cfg *config.Config) {
 		panic("Failed to connect to database: " + err.Error())
 	}
 
+	coreURL := utils.GetEnv("PROJECT_CORE_URL", "http://localhost:8000/api/internal")
+
+	coreClient := clients.NewCoreProjectHTTPClient(coreURL)
+
 	// Auto-migrate models
 	if err := database.QuickMigrate(dbConnection,
 		&db.ProfessionalProject{},
@@ -40,11 +46,11 @@ func setupRoutes(router *gin.Engine, cfg *config.Config) {
 	}
 
 	// Initialize services
-	projectService := projectsService.NewProfessionalProjectService(dbConnection)
+	projectService := projectsService.NewProfessionalProjectService(dbConnection, coreClient)
 	sessionService := sessionsService.NewTimeSessionService(dbConnection)
 
 	// Setup routes
-	api := router.Group("/api")
+	api := router.Group("")
 	projects.RegisterRoutes(api, projectService)
 	sessions.RegisterRoutes(api, sessionService)
 }

@@ -9,7 +9,6 @@ type ProfessionalProject struct {
 	ID              uint      `json:"id" gorm:"primaryKey"`
 	BaseProjectID   string    `json:"baseProjectId" gorm:"uniqueIndex;not null"` // Links to project-core BaseProject
 	ClientName      *string   `json:"clientName"`                                // Optional client (e.g., "THD" for TCS project)
-	SalaryPerHour   *float64  `json:"salaryPerHour"`                             // For cost calculations
 	TotalSalaryCost float64   `json:"totalSalaryCost" gorm:"default:0"`          // Calculated field
 	TotalHours      float64   `json:"totalHours" gorm:"default:0"`               // Calculated field
 	IsActive        bool      `json:"isActive" gorm:"default:true"`              // Project status
