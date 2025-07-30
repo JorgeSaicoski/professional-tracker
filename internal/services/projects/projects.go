@@ -76,6 +76,10 @@ func (s *ProfessionalProjectService) CreateProfessionalProject(
 		log.Error("create-professional-project:core-failed", "err", err)
 		return nil, fmt.Errorf("create base project: %w", err)
 	}
+	if base.ID == "" || base.ID == "0" {
+		log.Error("core project ID missing", "got", base.ID)
+		return nil, fmt.Errorf("core project ID missing (got %q)", base.ID)
+	}
 
 	now := time.Now()
 	pp := &db.ProfessionalProject{
