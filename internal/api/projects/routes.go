@@ -12,7 +12,11 @@ func RegisterRoutes(router *gin.RouterGroup, projectService *projects.Profession
 
 	// Professional projects endpoints
 	projectsGroup := router.Group("/projects")
-	projectsGroup.Use(api.AuthMiddleware())
+	projectsGroup.Use(
+		api.LoggingMiddleware(),
+		api.AuthMiddleware(),
+	)
+
 	{
 		// Project CRUD
 		projectsGroup.POST("", handler.CreateProfessionalProject)       // Create professional project

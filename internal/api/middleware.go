@@ -2,6 +2,7 @@ package api
 
 import (
 	keycloakauth "github.com/JorgeSaicoski/keycloak-auth"
+	"github.com/JorgeSaicoski/microservice-commons/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,4 +14,8 @@ func AuthMiddleware() gin.HandlerFunc {
 	config.RequiredClaims = []string{"sub", "preferred_username"}
 
 	return keycloakauth.SimpleAuthMiddleware(config)
+}
+
+func LoggingMiddleware() gin.HandlerFunc {
+	return middleware.DefaultLoggingMiddleware()
 }
