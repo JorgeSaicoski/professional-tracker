@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"github.com/JorgeSaicoski/microservice-commons/middleware"
 	"github.com/JorgeSaicoski/professional-tracker/internal/api"
 	"github.com/JorgeSaicoski/professional-tracker/internal/services/sessions"
 	"github.com/gin-gonic/gin"
@@ -12,7 +13,10 @@ func RegisterRoutes(router *gin.RouterGroup, sessionService *sessions.TimeSessio
 
 	// Time sessions endpoints
 	sessionsGroup := router.Group("/sessions")
-	sessionsGroup.Use(api.AuthMiddleware())
+	sessionsGroup.Use(
+		middleware.DefaultLoggingMiddleware(),
+		api.AuthMiddleware(),
+	)
 	{
 		// Session management
 		sessionsGroup.POST("/start", handler.StartWorkSession)   // Start work session

@@ -85,6 +85,7 @@ func (s *ProfessionalProjectService) CreateProfessionalProject(
 	pp := &db.ProfessionalProject{
 		BaseProjectID:   base.ID,
 		ClientName:      in.ClientName,
+		Title:           in.Title,
 		TotalHours:      0,
 		TotalSalaryCost: 0,
 		IsActive:        true,
@@ -136,6 +137,7 @@ func (s *ProfessionalProjectService) UpdateProfessionalProject(
 	if updates.ClientName != nil {
 		project.ClientName = updates.ClientName
 	}
+
 	if updates.IsActive != project.IsActive {
 		project.IsActive = updates.IsActive
 	}

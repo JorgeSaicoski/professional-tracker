@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"github.com/JorgeSaicoski/microservice-commons/middleware"
 	"github.com/JorgeSaicoski/professional-tracker/internal/api"
 	"github.com/JorgeSaicoski/professional-tracker/internal/services/projects"
 	"github.com/gin-gonic/gin"
@@ -13,10 +14,9 @@ func RegisterRoutes(router *gin.RouterGroup, projectService *projects.Profession
 	// Professional projects endpoints
 	projectsGroup := router.Group("/projects")
 	projectsGroup.Use(
-		api.LoggingMiddleware(),
+		middleware.DefaultLoggingMiddleware(),
 		api.AuthMiddleware(),
 	)
-
 	{
 		// Project CRUD
 		projectsGroup.POST("", handler.CreateProfessionalProject)       // Create professional project
