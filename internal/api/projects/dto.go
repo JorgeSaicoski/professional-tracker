@@ -36,6 +36,7 @@ type UpdateFreelanceProjectRequest struct {
 
 type ProfessionalProjectResponse struct {
 	ID                uint                       `json:"id"`
+	Title             string                     `json:"title"`
 	BaseProjectID     string                     `json:"baseProjectId"`
 	ClientName        *string                    `json:"clientName"`
 	TotalSalaryCost   float64                    `json:"totalSalaryCost"`
@@ -130,6 +131,7 @@ func (r *CreateProfessionalProjectRequest) ToInput() *svc.CreateProfessionalProj
 func ProfessionalProjectToResponse(project *db.ProfessionalProject) ProfessionalProjectResponse {
 	response := ProfessionalProjectResponse{
 		ID:              project.ID,
+		Title:           project.Title,
 		BaseProjectID:   project.BaseProjectID,
 		ClientName:      project.ClientName,
 		TotalSalaryCost: project.TotalSalaryCost,
