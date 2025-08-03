@@ -148,7 +148,7 @@ func (h *ProjectHandler) GetUserProfessionalProjects(c *gin.Context) {
 
 /* ------------------------- Freelance sub-projects ---------------- */
 
-func (h *ProjectHandler) ProjectAssignment(c *gin.Context) {
+func (h *ProjectHandler) CreateProjectAssignment(c *gin.Context) {
 	idParam := c.Param("id")
 	parentID, err := strconv.ParseUint(idParam, 10, 32)
 	if err != nil {
@@ -169,7 +169,7 @@ func (h *ProjectHandler) ProjectAssignment(c *gin.Context) {
 	}
 
 	fp := req.ToProjectAssignment()
-	created, err := h.projectService.ProjectAssignment(uint(parentID), fp, userID)
+	created, err := h.projectService.CreateProjectAssignment(uint(parentID), fp, userID)
 	if err != nil {
 		responses.InternalError(c, err.Error())
 		return
