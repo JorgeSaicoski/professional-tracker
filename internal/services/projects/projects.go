@@ -29,7 +29,7 @@ var log = slog.Default().With(
 
 type ProfessionalProjectService struct {
 	projectRepo   *pgconnect.Repository[db.ProfessionalProject]
-	freelanceRepo *pgconnect.Repository[db.FreelanceProject]
+	freelanceRepo *pgconnect.Repository[db.ProjectAssignment]
 	sessionRepo   *pgconnect.Repository[db.TimeSession]
 
 	coreClient clients.CoreProjectClient
@@ -41,7 +41,7 @@ func NewProfessionalProjectService(
 ) *ProfessionalProjectService {
 	return &ProfessionalProjectService{
 		projectRepo:   pgconnect.NewRepository[db.ProfessionalProject](database),
-		freelanceRepo: pgconnect.NewRepository[db.FreelanceProject](database),
+		freelanceRepo: pgconnect.NewRepository[db.ProjectAssignment](database),
 		sessionRepo:   pgconnect.NewRepository[db.TimeSession](database),
 		coreClient:    coreClient,
 	}
@@ -212,11 +212,11 @@ func (s *ProfessionalProjectService) GetUserProfessionalProjects(
 /*  CRUD – Freelance sub-project                                      */
 /* ------------------------------------------------------------------ */
 
-func (s *ProfessionalProjectService) CreateFreelanceProject(
+func (s *ProfessionalProjectService) CreateProjectAssignment(
 	parentProjectID uint,
-	freelance *db.FreelanceProject,
+	freelance *db.ProjectAssignment,
 	userID string,
-) (*db.FreelanceProject, error) {
+) (*db.ProjectAssignment, error) {
 	log.Info("create-freelance-project:start", "parentID", parentProjectID, "userID", userID)
 
 	parentProject, err := s.GetProfessionalProject(parentProjectID, userID)
@@ -241,13 +241,13 @@ func (s *ProfessionalProjectService) CreateFreelanceProject(
 	return freelance, nil
 }
 
-func (s *ProfessionalProjectService) GetFreelanceProject(
+func (s *ProfessionalProjectService) GetProjectAssignment(
 	id uint,
 	userID string,
-) (*db.FreelanceProject, error) {
+) (*db.ProjectAssignment, error) {
 	log.Debug("get-freelance-project", "freelanceID", id, "userID", userID)
 
-	var freelance db.FreelanceProject
+	var freelance db.ProjectAssignment
 	if err := s.freelanceRepo.FindByID(id, &freelance); err != nil {
 		log.Error("get-freelance-project:not-found", "err", err)
 		return nil, fmt.Errorf("freelance project not found: %w", err)
@@ -260,14 +260,14 @@ func (s *ProfessionalProjectService) GetFreelanceProject(
 	return &freelance, nil
 }
 
-func (s *ProfessionalProjectService) UpdateFreelanceProject(
+func (s *ProfessionalProjectService) UpdateProjectAssignment(
 	id uint,
-	updates *db.FreelanceProject,
+	updates *db.ProjectAssignment,
 	userID string,
-) (*db.FreelanceProject, error) {
+) (*db.ProjectAssignment, error) {
 	log.Info("update-freelance-project:start", "freelanceID", id, "userID", userID)
 
-	freelance, err := s.GetFreelanceProject(id, userID)
+	freelance, err := s.GetProjectAssignment(id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -383,7 +383,7 @@ func (s *ProfessionalProjectService) GetProjectCostReport(
 func (s *ProfessionalProjectService) loadProjectRelations(
 	project *db.ProfessionalProject,
 ) error {
-	if err := s.freelanceRepo.FindWhere(&project.FreelanceProjects,
+	if err := s.freelanceRepo.FindWhere(&project.ProjectAssignments,
 		"parent_project_id = ?", project.ID); err != nil {
 		return fmt.Errorf("failed to load freelance projects: %w", err)
 	}

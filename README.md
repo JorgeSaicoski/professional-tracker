@@ -118,11 +118,11 @@ type ProfessionalProject struct {
     TotalSalaryCost float64   // Calculated: sum(time_sessions * hourly_rate)
     
     // Relations
-    FreelanceProjects []FreelanceProject  // Sub-projects for freelance work
+    ProjectAssignments []ProjectAssignment  // Sub-projects for freelance work
     TimeSessions     []TimeSession       // All work sessions
 }
 
-type FreelanceProject struct {
+type ProjectAssignment struct {
     ParentProjectID string  // Links to ProfessionalProject
     WorkerUserID    string  // Single worker only (privacy)
     CostPerHour     float64 // Freelance rate
@@ -329,7 +329,7 @@ export PROJECT_CORE_URL=http://project-core:8001/api/internal
 ```bash
 # Models auto-migrate on startup:
 # - ProfessionalProject
-# - FreelanceProject  
+# - ProjectAssignment  
 # - TimeSession
 go run cmd/server/main.go
 ```

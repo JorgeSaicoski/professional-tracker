@@ -17,12 +17,15 @@ type ProfessionalProject struct {
 	UpdatedAt       time.Time `json:"updatedAt"`
 
 	// Relations
-	FreelanceProjects []FreelanceProject `json:"freelanceProjects" gorm:"foreignKey:ParentProjectID"`
-	TimeSessions      []TimeSession      `json:"timeSessions" gorm:"foreignKey:ProjectID"`
+	ProjectAssignments []ProjectAssignment `json:"projectAssignments" gorm:"foreignKey:ParentProjectID"`
+	TimeSessions       []TimeSession       `json:"timeSessions" gorm:"foreignKey:ProjectID"`
 }
 
-// FreelanceProject represents sub-projects for freelance work (one worker per project for privacy)
-type FreelanceProject struct {
+// ProjectAssignment represents one person's participation in a ProfessionalProject.
+// Each assignment defines the hourly cost, activation status, and is linked to multiple work sessions.
+// A single user may have multiple assignments to the same project if their rate or role changes over time.
+
+type ProjectAssignment struct {
 	ID              uint      `json:"id" gorm:"primaryKey"`
 	ParentProjectID uint      `json:"parentProjectId" gorm:"not null"` // Links to ProfessionalProject
 	WorkerUserID    string    `json:"workerUserId" gorm:"not null"`    // Single worker only (privacy model)
@@ -36,30 +39,30 @@ type FreelanceProject struct {
 
 	// Relations
 	ParentProject ProfessionalProject `json:"parentProject" gorm:"foreignKey:ParentProjectID"`
-	TimeSessions  []TimeSession       `json:"timeSessions" gorm:"foreignKey:FreelanceProjectID"`
+	TimeSessions  []TimeSession       `json:"timeSessions" gorm:"foreignKey:ProjectAssignmentID"`
 }
 
 // TimeSession represents individual work sessions with detailed tracking
 type TimeSession struct {
-	ID                 uint       `json:"id" gorm:"primaryKey"`
-	ProjectID          uint       `json:"projectId" gorm:"not null"` // Professional project ID
-	FreelanceProjectID *uint      `json:"freelanceProjectId"`        // Optional freelance sub-project
-	UserID             string     `json:"userId" gorm:"not null"`    // Worker
-	CompanyID          string     `json:"companyId" gorm:"not null"` // Company context
-	StartTime          time.Time  `json:"startTime" gorm:"not null"`
-	EndTime            *time.Time `json:"endTime"`                           // nil for active sessions
-	SessionType        string     `json:"sessionType" gorm:"default:'work'"` // work, break, lunch, brb
-	DurationMinutes    int        `json:"durationMinutes" gorm:"default:0"`  // Calculated duration
-	HourlyRate         *float64   `json:"hourlyRate"`                        // Rate at time of session
-	SessionCost        float64    `json:"sessionCost" gorm:"default:0"`      // Calculated cost
-	Notes              *string    `json:"notes"`                             // Optional session notes
-	IsActive           bool       `json:"isActive" gorm:"default:false"`     // Is currently active
-	CreatedAt          time.Time  `json:"createdAt"`
-	UpdatedAt          time.Time  `json:"updatedAt"`
+	ID                  uint       `json:"id" gorm:"primaryKey"`
+	ProjectID           uint       `json:"projectId" gorm:"not null"` // Professional project ID
+	ProjectAssignmentID *uint      `json:"projectAssignmentId"`       // Optional freelance sub-project
+	UserID              string     `json:"userId" gorm:"not null"`    // Worker
+	CompanyID           string     `json:"companyId" gorm:"not null"` // Company context
+	StartTime           time.Time  `json:"startTime" gorm:"not null"`
+	EndTime             *time.Time `json:"endTime"`                           // nil for active sessions
+	SessionType         string     `json:"sessionType" gorm:"default:'work'"` // work, break, lunch, brb
+	DurationMinutes     int        `json:"durationMinutes" gorm:"default:0"`  // Calculated duration
+	HourlyRate          *float64   `json:"hourlyRate"`                        // Rate at time of session
+	SessionCost         float64    `json:"sessionCost" gorm:"default:0"`      // Calculated cost
+	Notes               *string    `json:"notes"`                             // Optional session notes
+	IsActive            bool       `json:"isActive" gorm:"default:false"`     // Is currently active
+	CreatedAt           time.Time  `json:"createdAt"`
+	UpdatedAt           time.Time  `json:"updatedAt"`
 
 	// Relations
-	Project          ProfessionalProject `json:"project" gorm:"foreignKey:ProjectID"`
-	FreelanceProject *FreelanceProject   `json:"freelanceProject" gorm:"foreignKey:FreelanceProjectID"`
+	Project           ProfessionalProject `json:"project" gorm:"foreignKey:ProjectID"`
+	ProjectAssignment *ProjectAssignment  `json:"projectAssignment" gorm:"foreignKey:ProjectAssignmentID"`
 }
 
 // SessionBreak represents break periods within work sessions

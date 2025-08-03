@@ -148,7 +148,7 @@ func (h *ProjectHandler) GetUserProfessionalProjects(c *gin.Context) {
 
 /* ------------------------- Freelance sub-projects ---------------- */
 
-func (h *ProjectHandler) CreateFreelanceProject(c *gin.Context) {
+func (h *ProjectHandler) ProjectAssignment(c *gin.Context) {
 	idParam := c.Param("id")
 	parentID, err := strconv.ParseUint(idParam, 10, 32)
 	if err != nil {
@@ -156,7 +156,7 @@ func (h *ProjectHandler) CreateFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	var req CreateFreelanceProjectRequest
+	var req CreateProjectAssignmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		responses.BadRequest(c, err.Error())
 		return
@@ -168,18 +168,18 @@ func (h *ProjectHandler) CreateFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	fp := req.ToFreelanceProject()
-	created, err := h.projectService.CreateFreelanceProject(uint(parentID), fp, userID)
+	fp := req.ToProjectAssignment()
+	created, err := h.projectService.ProjectAssignment(uint(parentID), fp, userID)
 	if err != nil {
 		responses.InternalError(c, err.Error())
 		return
 	}
 
-	resp := FreelanceProjectToResponse(created)
+	resp := ProjectAssignmentToResponse(created)
 	responses.Created(c, "Freelance project created successfully", resp)
 }
 
-func (h *ProjectHandler) GetFreelanceProject(c *gin.Context) {
+func (h *ProjectHandler) GetProjectAssignment(c *gin.Context) {
 	fidParam := c.Param("freelanceId")
 	fid, err := strconv.ParseUint(fidParam, 10, 32)
 	if err != nil {
@@ -193,7 +193,7 @@ func (h *ProjectHandler) GetFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	fp, err := h.projectService.GetFreelanceProject(uint(fid), userID)
+	fp, err := h.projectService.GetProjectAssignment(uint(fid), userID)
 	if err != nil {
 		if err.Error() == "access denied: freelance project is private to the worker" {
 			responses.Forbidden(c, err.Error())
@@ -203,11 +203,11 @@ func (h *ProjectHandler) GetFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	resp := FreelanceProjectToResponse(fp)
+	resp := ProjectAssignmentToResponse(fp)
 	responses.Success(c, "Freelance project retrieved successfully", resp)
 }
 
-func (h *ProjectHandler) UpdateFreelanceProject(c *gin.Context) {
+func (h *ProjectHandler) UpdateProjectAssignment(c *gin.Context) {
 	fidParam := c.Param("freelanceId")
 	fid, err := strconv.ParseUint(fidParam, 10, 32)
 	if err != nil {
@@ -215,7 +215,7 @@ func (h *ProjectHandler) UpdateFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	var req UpdateFreelanceProjectRequest
+	var req UpdateProjectAssignmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		responses.BadRequest(c, err.Error())
 		return
@@ -227,8 +227,8 @@ func (h *ProjectHandler) UpdateFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	updates := req.ToFreelanceProject()
-	fp, err := h.projectService.UpdateFreelanceProject(uint(fid), updates, userID)
+	updates := req.ToProjectAssignment()
+	fp, err := h.projectService.UpdateProjectAssignment(uint(fid), updates, userID)
 	if err != nil {
 		if err.Error() == "access denied: freelance project is private to the worker" {
 			responses.Forbidden(c, err.Error())
@@ -238,7 +238,7 @@ func (h *ProjectHandler) UpdateFreelanceProject(c *gin.Context) {
 		return
 	}
 
-	resp := FreelanceProjectToResponse(fp)
+	resp := ProjectAssignmentToResponse(fp)
 	responses.Success(c, "Freelance project updated successfully", resp)
 }
 

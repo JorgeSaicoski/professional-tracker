@@ -28,9 +28,9 @@ func RegisterRoutes(router *gin.RouterGroup, projectService *projects.Profession
 		projectsGroup.GET("", handler.GetUserProfessionalProjects) // Get user's professional projects
 
 		// Freelance sub-projects
-		projectsGroup.POST("/:id/freelance", handler.CreateFreelanceProject)             // Create freelance sub-project
-		projectsGroup.GET("/:id/freelance/:freelanceId", handler.GetFreelanceProject)    // Get freelance project
-		projectsGroup.PUT("/:id/freelance/:freelanceId", handler.UpdateFreelanceProject) // Update freelance project
+		projectsGroup.POST("/:id/freelance", handler.CreateProjectAssignment)             // Create freelance sub-project
+		projectsGroup.GET("/:id/freelance/:freelanceId", handler.GetProjectAssignment)    // Get freelance project
+		projectsGroup.PUT("/:id/freelance/:freelanceId", handler.UpdateProjectAssignment) // Update freelance project
 
 		// Reports
 		projectsGroup.GET("/:id/report", handler.GetProjectCostReport) // Get project cost report

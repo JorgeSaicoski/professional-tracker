@@ -37,7 +37,7 @@ func setupRoutes(router *gin.Engine, cfg *config.Config) {
 	// Auto-migrate models
 	if err := database.QuickMigrate(dbConnection,
 		&db.ProfessionalProject{},
-		&db.FreelanceProject{},
+		&db.ProjectAssignment{},
 		&db.TimeSession{},
 		&db.SessionBreak{},
 		&db.UserActiveSession{},

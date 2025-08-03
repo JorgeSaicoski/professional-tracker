@@ -37,21 +37,21 @@ type GenerateReportRequest struct {
 // Response DTOs
 
 type TimeSessionResponse struct {
-	ID                 uint       `json:"id"`
-	ProjectID          uint       `json:"projectId"`
-	FreelanceProjectID *uint      `json:"freelanceProjectId"`
-	UserID             string     `json:"userId"`
-	CompanyID          string     `json:"companyId"`
-	StartTime          time.Time  `json:"startTime"`
-	EndTime            *time.Time `json:"endTime"`
-	SessionType        string     `json:"sessionType"`
-	DurationMinutes    int        `json:"durationMinutes"`
-	HourlyRate         *float64   `json:"hourlyRate"`
-	SessionCost        float64    `json:"sessionCost"`
-	Notes              *string    `json:"notes"`
-	IsActive           bool       `json:"isActive"`
-	CreatedAt          time.Time  `json:"createdAt"`
-	UpdatedAt          time.Time  `json:"updatedAt"`
+	ID                  uint       `json:"id"`
+	ProjectID           uint       `json:"projectId"`
+	ProjectAssignmentID *uint      `json:"projectAssignmentId"`
+	UserID              string     `json:"userId"`
+	CompanyID           string     `json:"companyId"`
+	StartTime           time.Time  `json:"startTime"`
+	EndTime             *time.Time `json:"endTime"`
+	SessionType         string     `json:"sessionType"`
+	DurationMinutes     int        `json:"durationMinutes"`
+	HourlyRate          *float64   `json:"hourlyRate"`
+	SessionCost         float64    `json:"sessionCost"`
+	Notes               *string    `json:"notes"`
+	IsActive            bool       `json:"isActive"`
+	CreatedAt           time.Time  `json:"createdAt"`
+	UpdatedAt           time.Time  `json:"updatedAt"`
 }
 
 type SessionBreakResponse struct {
@@ -96,21 +96,21 @@ type UserTimeReportResponse struct {
 
 func TimeSessionToResponse(session *db.TimeSession) TimeSessionResponse {
 	return TimeSessionResponse{
-		ID:                 session.ID,
-		ProjectID:          session.ProjectID,
-		FreelanceProjectID: session.FreelanceProjectID,
-		UserID:             session.UserID,
-		CompanyID:          session.CompanyID,
-		StartTime:          session.StartTime,
-		EndTime:            session.EndTime,
-		SessionType:        session.SessionType,
-		DurationMinutes:    session.DurationMinutes,
-		HourlyRate:         session.HourlyRate,
-		SessionCost:        session.SessionCost,
-		Notes:              session.Notes,
-		IsActive:           session.IsActive,
-		CreatedAt:          session.CreatedAt,
-		UpdatedAt:          session.UpdatedAt,
+		ID:                  session.ID,
+		ProjectID:           session.ProjectID,
+		ProjectAssignmentID: session.ProjectAssignmentID,
+		UserID:              session.UserID,
+		CompanyID:           session.CompanyID,
+		StartTime:           session.StartTime,
+		EndTime:             session.EndTime,
+		SessionType:         session.SessionType,
+		DurationMinutes:     session.DurationMinutes,
+		HourlyRate:          session.HourlyRate,
+		SessionCost:         session.SessionCost,
+		Notes:               session.Notes,
+		IsActive:            session.IsActive,
+		CreatedAt:           session.CreatedAt,
+		UpdatedAt:           session.UpdatedAt,
 	}
 }
 
