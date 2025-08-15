@@ -266,3 +266,25 @@ func (h *ProjectHandler) GetProjectCostReport(c *gin.Context) {
 
 	responses.Success(c, "Project cost report generated successfully", report)
 }
+
+// GetMyAssignments returns all ProjectAssignments where the caller is the worker.
+// Auth is enforced by middleware; this reads user ID from header set by your gateway/middleware.
+func (h *ProjectHandler) GetMyAssignments(c *gin.Context) {
+	userID := c.GetHeader("X-User-ID")
+	if userID == "" {
+		responses.BadRequest(c, "missing X-User-ID header")
+		return
+	}
+
+	assignments, err := h.projectService.GetUserProjectAssignmentsCtx(c.Request.Context(), userID)
+	if err != nil {
+		responses.InternalError(c, err.Error())
+		return
+	}
+
+	out := make([]*ProfessionalAssignmentDTO, 0, len(assignments))
+	for _, a := range assignments {
+		out = append(out, NewProfessionalAssignmentDTO(a))
+	}
+	responses.Success(c, "Assignments retrieved successfully", out)
+}

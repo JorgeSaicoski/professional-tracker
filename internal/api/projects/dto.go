@@ -79,6 +79,27 @@ type TimeSessionResponse struct {
 	UpdatedAt           time.Time  `json:"updatedAt"`
 }
 
+// ProfessionalAssignmentDTO is the minimal payload the frontend needs.
+type ProfessionalAssignmentDTO struct {
+	ID              uint    `json:"id"`
+	ParentProjectID uint    `json:"parentProjectId"`
+	WorkerUserID    string  `json:"workerUserId"`
+	HoursDedicated  float64 `json:"hoursDedicated"`
+	CostPerHour     float64 `json:"costPerHour"`
+	IsActive        bool    `json:"isActive"`
+}
+
+func NewProfessionalAssignmentDTO(a db.ProjectAssignment) *ProfessionalAssignmentDTO {
+	return &ProfessionalAssignmentDTO{
+		ID:              a.ID,
+		ParentProjectID: a.ParentProjectID,
+		WorkerUserID:    a.WorkerUserID,
+		HoursDedicated:  a.HoursDedicated,
+		CostPerHour:     a.CostPerHour,
+		IsActive:        a.IsActive,
+	}
+}
+
 // Conversion methods
 
 func (r *CreateProfessionalProjectRequest) ToProfessionalProject() *db.ProfessionalProject {
