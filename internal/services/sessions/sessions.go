@@ -248,24 +248,24 @@ func (s *TimeSessionService) SwitchCompany(userID, newCompanyID string, newProje
 
 // GetActiveSession gets the user's current active session
 func (s *TimeSessionService) GetActiveSession(userID string) (*db.UserActiveSession, error) {
-	var rows []db.UserActiveSession
-	if err := s.activeSessionRepo.FindWhere(&rows, "user_id = ? AND is_active = ?", userID, true); err != nil {
-		return nil, fmt.Errorf("no active session found for user %s: %w", userID, err)
+	var sessions []db.UserActiveSession
+	if err := s.activeSessionRepo.FindWhere(&sessions, "user_id = ?", userID); err != nil {
+		return nil, fmt.Errorf("query active session: %w", err)
 	}
-	if len(rows) == 0 {
-		return nil, fmt.Errorf("no active session found for user %s", userID)
+	if len(sessions) == 0 {
+		return nil, fmt.Errorf("no active session found for user")
 	}
-	active := rows[0]
+	active := sessions[0]
 	return &active, nil
 }
 
 // HasActiveSession checks if user has an active session
 func (s *TimeSessionService) HasActiveSession(userID string) (bool, error) {
-	var rows []db.UserActiveSession
-	if err := s.activeSessionRepo.FindWhere(&rows, "user_id = ? AND is_active = ?", userID, true); err != nil {
-		return false, nil // treat missing as no active session
+	var sessions []db.UserActiveSession
+	if err := s.activeSessionRepo.FindWhere(&sessions, "user_id = ?", userID); err != nil {
+		return false, fmt.Errorf("query active session: %w", err)
 	}
-	return len(rows) > 0, nil
+	return len(sessions) > 0, nil
 }
 
 // GetUserSessionHistory gets session history for a user
