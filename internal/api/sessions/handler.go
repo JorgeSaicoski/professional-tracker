@@ -1,6 +1,8 @@
 package sessions
 
 import (
+	"errors"
+	"log"
 	"strconv"
 	"time"
 
@@ -8,10 +10,16 @@ import (
 	"github.com/JorgeSaicoski/microservice-commons/responses"
 	"github.com/JorgeSaicoski/professional-tracker/internal/services/sessions"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type SessionHandler struct {
 	sessionService *sessions.TimeSessionService
+}
+
+type ActiveSessionEnvelope struct {
+	Active  bool                       `json:"active"`
+	Session *UserActiveSessionResponse `json:"session"` // nil when no active session
 }
 
 func NewSessionHandler(sessionService *sessions.TimeSessionService) *SessionHandler {
@@ -65,22 +73,67 @@ func (h *SessionHandler) FinishWorkSession(c *gin.Context) {
 }
 
 func (h *SessionHandler) GetActiveSession(c *gin.Context) {
+	// 1. Log entry point for the handler.
+	log.Println("DEBUG: Entering GetActiveSession handler")
+
 	userID, exists := keycloakauth.GetUserID(c)
 	if !exists {
+		// 2. Log if user ID is not found (authentication failure).
+		log.Println("DEBUG: User ID not found in context (unauthenticated)")
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
+	// 3. Log the retrieved user ID.
+	log.Printf("DEBUG: Authenticated userID: %s", userID)
 
-	activeSession, err := h.sessionService.GetActiveSession(userID)
+	// service call (adjust name/signature if different in your code)
+	active, err := h.sessionService.GetActiveSession(userID)
+	// 4. Log after the service call, indicating success or error.
+	log.Printf("DEBUG: Call to sessionService.GetActiveSession for userID %s returned (active: %+v, err: %v)", userID, active, err)
+
+	// Not found → 200 with {active:false, session:null}
 	if err != nil {
-		responses.NotFound(c, "No active session found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 5. Log specific case: record not found.
+			log.Println("DEBUG: No active session found for the user (gorm.ErrRecordNotFound)")
+			responses.Success(c, "ok", ActiveSessionEnvelope{
+				Active:  false,
+				Session: nil,
+			})
+			return
+		}
+		// 6. Log for unexpected errors from the service.
+		log.Printf("ERROR: Unexpected error from sessionService.GetActiveSession: %v", err)
+		// Unexpected error
+		responses.InternalError(c, "failed to get active session")
 		return
 	}
 
-	response := ActiveSessionToResponse(activeSession)
-	responses.Success(c, "Active session retrieved successfully", response)
-}
+	// Defensive: service returned nil w/o error → treat as no active session
+	if active == nil {
+		// 7. Log for a defensive check: service returned nil without an error.
+		log.Println("DEBUG: sessionService.GetActiveSession returned nil session without an error (treating as no active session)")
+		responses.Success(c, "ok", ActiveSessionEnvelope{
+			Active:  false,
+			Session: nil,
+		})
+		return
+	}
 
+	// Normal happy path
+	// 8. Log the active session object before transforming it.
+	log.Printf("DEBUG: Active session found: %+v", active)
+	resp := ActiveSessionToResponse(active)
+	// 9. Log the transformed response object.
+	log.Printf("DEBUG: Transformed session response: %+v", resp)
+
+	responses.Success(c, "ok", ActiveSessionEnvelope{
+		Active:  true,
+		Session: &resp,
+	})
+	// 10. Log exit point of the handler.
+	log.Println("DEBUG: Exiting GetActiveSession handler (active session returned)")
+}
 func (h *SessionHandler) TakeBreak(c *gin.Context) {
 	var req TakeBreakRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

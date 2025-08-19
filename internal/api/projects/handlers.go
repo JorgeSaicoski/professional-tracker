@@ -1,6 +1,9 @@
 package projects
 
 import (
+	"bytes"
+	"io"
+	"log"
 	"strconv"
 
 	keycloakauth "github.com/JorgeSaicoski/keycloak-auth"
@@ -149,34 +152,64 @@ func (h *ProjectHandler) GetUserProfessionalProjects(c *gin.Context) {
 /* ------------------------- Freelance sub-projects ---------------- */
 
 func (h *ProjectHandler) CreateProjectAssignment(c *gin.Context) {
+	// 1. Log entry point.
+	log.Println("DEBUG: Entering CreateProjectAssignment handler")
+
+	// 2. Read and log the entire raw request body.
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		log.Printf("ERROR: Failed to read request body: %v", err)
+		responses.InternalError(c, "Failed to read request body")
+		return
+	}
+	log.Printf("DEBUG: Raw request body: %s", string(bodyBytes))
+
+	// 3. Restore the request body for subsequent Gin operations.
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// The rest of your existing code follows...
+
 	idParam := c.Param("id")
+	log.Printf("DEBUG: idParam from URL: %s", idParam)
 	parentID, err := strconv.ParseUint(idParam, 10, 32)
 	if err != nil {
+		log.Printf("ERROR: Failed to parse parentID from URL param '%s': %v", idParam, err)
 		responses.BadRequest(c, "Invalid parent project ID")
 		return
 	}
+	log.Printf("DEBUG: Successfully parsed parentID: %d", parentID)
 
 	var req CreateProjectAssignmentRequest
+	// This will now successfully bind from the restored body.
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("ERROR: Failed to bind JSON request body: %v", err)
 		responses.BadRequest(c, err.Error())
 		return
 	}
+	log.Printf("DEBUG: Successfully bound JSON request: %+v", req)
 
 	userID, ok := keycloakauth.GetUserID(c)
 	if !ok {
+		log.Println("ERROR: User not authenticated from Keycloak")
 		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
+	log.Printf("DEBUG: Authenticated userID: %s", userID)
 
 	fp := req.ToProjectAssignment()
 	created, err := h.projectService.CreateProjectAssignment(uint(parentID), fp, userID)
 	if err != nil {
+		log.Printf("ERROR: Service failed to create project assignment: %v", err)
 		responses.InternalError(c, err.Error())
 		return
 	}
 
+	log.Printf("DEBUG: Successfully created project assignment with ID: %d", created.ID)
 	resp := ProjectAssignmentToResponse(created)
+	log.Printf("DEBUG: Final response payload: %+v", resp)
 	responses.Created(c, "Freelance project created successfully", resp)
+
+	log.Println("DEBUG: Exiting CreateProjectAssignment handler")
 }
 
 func (h *ProjectHandler) GetProjectAssignment(c *gin.Context) {
