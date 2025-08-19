@@ -12,5 +12,18 @@ func AuthMiddleware() gin.HandlerFunc {
 	config.SkipPaths = []string{"/health"}
 	config.RequiredClaims = []string{"sub", "preferred_username"}
 
-	return keycloakauth.SimpleAuthMiddleware(config)
+	tokenAuth := keycloakauth.SimpleAuthMiddleware(config)
+
+	return func(c *gin.Context) {
+		// If the upstream gateway already authenticated the user and
+		// provided the ID, trust that header and skip JWT validation.
+		if userID := c.GetHeader("X-User-ID"); userID != "" {
+			c.Set("userID", userID)
+			c.Next()
+			return
+		}
+
+		// Fallback to standard JWT based authentication.
+		tokenAuth(c)
+	}
 }

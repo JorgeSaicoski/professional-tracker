@@ -270,9 +270,9 @@ func (h *ProjectHandler) GetProjectCostReport(c *gin.Context) {
 // GetMyAssignments returns all ProjectAssignments where the caller is the worker.
 // Auth is enforced by middleware; this reads user ID from header set by your gateway/middleware.
 func (h *ProjectHandler) GetMyAssignments(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		responses.BadRequest(c, "missing X-User-ID header")
+	userID, ok := keycloakauth.GetUserID(c)
+	if !ok {
+		responses.Unauthorized(c, "User not authenticated")
 		return
 	}
 
